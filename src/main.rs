@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-
 mod claude;
 
 #[derive(Parser)]
@@ -275,6 +274,49 @@ async fn init_project(config: &ProjectConfig, prd_path: Option<&str>, include: O
         return Err(color_eyre::eyre::eyre!(
             "Failed to unzip Spring Boot scaffold"
         ));
+    }
+
+    // Clean up zip file
+    fs::remove_file("spring.zip")?;
+
+    // Get project version from pom.xml using Maven
+    let output = Command::new("./mvnw")
+        .current_dir(&config.app_dir())
+        .arg("help:evaluate")
+        .arg("-Dexpression=project.version")
+        .arg("-q")
+        .arg("-DforceStdout")
+        .output()?;
+
+    if !output.status.success() {
+        return Err(color_eyre::eyre::eyre!("Failed to get project version from pom.xml"));
+    }
+
+    let project_version = String::from_utf8(output.stdout)?
+        .trim()
+        .to_string();
+
+    // Compare versions
+    if project_version != config.version {
+        println!("Warning: Version mismatch detected");
+        println!("  config.json version: {}", config.version);
+        println!("  pom.xml version: {}", project_version);
+        
+        println!("Updating pom.xml version to match config.json...");
+        
+        // Update version using Maven
+        let status = Command::new("./mvnw")
+            .current_dir(&config.app_dir())
+            .arg("versions:set")
+            .arg(format!("-DnewVersion={}", config.version))
+            .arg("-DgenerateBackupPoms=false")
+            .status()?;
+
+        if !status.success() {
+            return Err(color_eyre::eyre::eyre!("Failed to update project version"));
+        }
+
+        println!("Version updated successfully");
     }
 
     println!("Project initialization complete");
