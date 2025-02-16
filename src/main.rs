@@ -49,6 +49,7 @@ struct ProjectConfig {
     package_name: String,
     version: String,
     projects_dir: String,
+    maven_plugins: Vec<String>,
 }
 
 impl ProjectConfig {
@@ -296,6 +297,9 @@ async fn init_project(config: &ProjectConfig, prd_path: Option<&str>, include: O
         .trim()
         .to_string();
 
+    // Sync plugins from config.json to pom.xml
+    sync_plugins(config)?;
+
     // Compare versions
     if project_version != config.version {
         println!("Warning: Version mismatch detected");
@@ -335,6 +339,71 @@ fn build_project(config: &ProjectConfig) -> Result<()> {
     }
 
     println!("Build complete");
+    Ok(())
+}
+
+fn sync_plugins(config: &ProjectConfig) -> Result<()> {
+    // Read existing pom.xml content
+    let pom_path = config.app_dir().join("pom.xml");
+    let pom_content = fs::read_to_string(&pom_path)?;
+
+    // For each plugin in config.json
+    for plugin in &config.maven_plugins {
+        // Check if plugin is already in pom.xml
+        if !pom_content.contains(plugin) {
+            println!("Adding plugin: {}", plugin);
+
+            // Extract group:artifact:version from plugin string
+            let parts: Vec<&str> = plugin.split(":").collect();
+            if parts.len() != 3 {
+                return Err(color_eyre::eyre::eyre!("Invalid plugin format: {}", plugin));
+            }
+
+            // Extract plugin coordinates
+            let parts: Vec<&str> = plugin.split(":").collect();
+            let (group_id, artifact_id, version) = (
+                parts[0], parts[1], parts[2]
+            );
+
+            // Read current pom.xml
+            let mut pom_content = fs::read_to_string(&pom_path)?;
+
+            // Check if build and plugins sections exist, if not add them
+            if !pom_content.contains("<build>") {
+                let insert_pos = pom_content.find("</project>").ok_or_else(|| 
+                    color_eyre::eyre::eyre!("Could not find </project> tag in pom.xml"))?;
+                pom_content.insert_str(insert_pos, "
+    <build>
+        <plugins>
+        </plugins>
+    </build>
+");
+            } else if !pom_content.contains("<plugins>") {
+                let insert_pos = pom_content.find("</build>").ok_or_else(|| 
+                    color_eyre::eyre::eyre!("Could not find </build> tag in pom.xml"))?;
+                pom_content.insert_str(insert_pos, "
+        <plugins>
+        </plugins>
+");
+            }
+
+            // Add plugin configuration
+            let plugin_xml = format!("
+            <plugin>
+                <groupId>{}</groupId>
+                <artifactId>{}</artifactId>
+                <version>{}</version>
+            </plugin>", group_id, artifact_id, version);
+
+            let plugins_end_pos = pom_content.find("</plugins>").ok_or_else(|| 
+                color_eyre::eyre::eyre!("Could not find </plugins> tag in pom.xml"))?;
+            pom_content.insert_str(plugins_end_pos, &plugin_xml);
+
+            // Write updated pom.xml
+            fs::write(&pom_path, pom_content)?;
+        }
+    }
+
     Ok(())
 }
 

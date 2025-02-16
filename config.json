@@ -2,5 +2,8 @@
     "app_name": "dag-ai-demo",
     "package_name": "dev.surly",
     "version": "0.1.0",
-    "projects_dir": "/Users/shane/projects"
+    "projects_dir": "/Users/shane/projects",
+    "maven_plugins": [
+        "com.google.cloud.tools:jib-maven-plugin:3.4.4"
+    ]
 }
