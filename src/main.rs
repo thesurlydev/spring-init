@@ -34,6 +34,8 @@ enum Commands {
     Build,
     /// Run the project
     Run,
+    /// List all available dependency IDs
+    Deps,
     /// Suggest dependencies based on PRD
     SuggestDeps {
         /// Path to PRD file
@@ -96,6 +98,64 @@ async fn suggest_dependencies(prd_path: &str) -> Result<()> {
     Ok(())
 }
 
+async fn list_dependencies() -> Result<()> {
+    println!("Fetching available dependencies from start.spring.io...");
+    let client = reqwest::Client::new();
+    let response = client
+        .get("https://start.spring.io/metadata/client")
+        .send()
+        .await
+        .map_err(|e| color_eyre::eyre::eyre!("Failed to fetch dependencies: {}", e))?
+        .json::<serde_json::Value>()
+        .await
+        .map_err(|e| color_eyre::eyre::eyre!("Failed to parse response: {}", e))?;
+
+    let mut dep_list: Vec<(String, String)> = Vec::new();
+
+    // Process nested dependencies
+    if let Some(categories) = response["dependencies"]["values"].as_array() {
+        for category in categories {
+            if let Some(deps) = category["values"].as_array() {
+                for dep in deps {
+                    if let (Some(id), Some(name), Some(description)) = (
+                        dep["id"].as_str(),
+                        dep["name"].as_str(),
+                        dep["description"].as_str(),
+                    ) {
+                        dep_list.push((id.to_string(), format!("{} - {}", name, description)));
+                    }
+                }
+            }
+        }
+    }
+
+    // Sort by ID
+    dep_list.sort_by(|a, b| a.0.cmp(&b.0));
+
+    // Sort dependencies by ID
+    dep_list.sort_by(|a, b| a.0.cmp(&b.0));
+
+    // Print in a formatted table
+    println!("Available Spring Boot Dependencies\n");
+    println!("{:<40} {}", "ID", "Description");
+    println!("{:-<120}", "");
+
+    for (id, desc) in dep_list {
+        // Wrap description text
+        let wrapped_desc = textwrap::fill(&desc, 70);
+        let mut lines = wrapped_desc.lines();
+        
+        if let Some(first_line) = lines.next() {
+            println!("{:<40} {}", id, first_line);
+            for line in lines {
+                println!("{:<40} {}", "", line);
+            }
+        }
+    }
+
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     color_eyre::install()?;
@@ -108,6 +168,7 @@ async fn main() -> Result<()> {
         Commands::Init { prd, include } => init_project(&config, prd.as_deref(), include).await?,
         Commands::Build => build_project(&config)?,
         Commands::Run => run_project(&config)?,
+        Commands::Deps => list_dependencies().await?,
         Commands::SuggestDeps { prd } => suggest_dependencies(&prd).await?,
     }
 
