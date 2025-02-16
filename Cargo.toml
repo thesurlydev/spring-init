@@ -12,9 +12,9 @@ clap = { version = "4.5.1", features = ["derive"] }
 color-eyre = "0.6.2"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-reqwest = { version = "0.11", features = ["json"] }
+reqwest = { version = "0.12", features = ["json"] }
 tokio = { version = "1.0", features = ["full"] }
-textwrap = "0.16"
+textwrap = "0.16"   
 
 [profile.release]
 opt-level = 3
