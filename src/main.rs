@@ -26,6 +26,9 @@ enum Commands {
         /// Path to PRD file for automatic dependency selection
         #[arg(long)]
         prd: Option<String>,
+        /// Additional dependencies to always include
+        #[arg(long, value_delimiter = ',')]
+        include: Option<Vec<String>>,
     },
     /// Build the project
     Build,
@@ -102,7 +105,7 @@ async fn main() -> Result<()> {
     match cli.command {
         Commands::Info => show_info(&config),
         Commands::Reset => reset(&config)?,
-        Commands::Init { prd } => init_project(&config, prd.as_deref()).await?,
+        Commands::Init { prd, include } => init_project(&config, prd.as_deref(), include).await?,
         Commands::Build => build_project(&config)?,
         Commands::Run => run_project(&config)?,
         Commands::SuggestDeps { prd } => suggest_dependencies(&prd).await?,
@@ -136,8 +139,9 @@ fn reset(config: &ProjectConfig) -> Result<()> {
     Ok(())
 }
 
-async fn init_project(config: &ProjectConfig, prd_path: Option<&str>) -> Result<()> {
-    let dependencies = if let Some(prd_path) = prd_path {
+async fn init_project(config: &ProjectConfig, prd_path: Option<&str>, include: Option<Vec<String>>) -> Result<()> {
+    // Get dependencies from PRD if provided
+    let mut all_deps = if let Some(prd_path) = prd_path {
         // Read the PRD file
         let prd_content = fs::read_to_string(prd_path)?;
         
@@ -163,16 +167,26 @@ async fn init_project(config: &ProjectConfig, prd_path: Option<&str>) -> Result<
         String::from("web")
     };
 
+    // Add included dependencies
+    if let Some(included) = include {
+        let prd_deps: Vec<&str> = all_deps.split(',').map(|s| s.trim()).collect();
+        let mut combined_deps: Vec<String> = prd_deps.iter().map(|&s| s.to_string()).collect();
+        combined_deps.extend(included);
+        combined_deps.sort();
+        combined_deps.dedup();
+        all_deps = combined_deps.join(",");
+    };
+
     // First reset
     reset(config)?;
 
     // Download Spring Boot scaffold
     let url = format!(
         "https://start.spring.io/starter.zip?type=maven-project&language=java&bootVersion=3.4.2&baseDir={}&groupId={}&artifactId={}&name={}&packageName={}&packaging=jar&javaVersion=21&dependencies={}",
-        config.app_name, config.package_name, config.app_name, config.app_name, config.package_name, dependencies.trim()
+        config.app_name, config.package_name, config.app_name, config.app_name, config.package_name, all_deps.trim()
     );
 
-    println!("Using dependencies: {}", dependencies.trim());
+    println!("Using dependencies: {}", all_deps.trim());
     println!("Full URL: {}", url);
 
     println!("Downloading Spring Boot scaffold...");
