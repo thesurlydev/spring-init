@@ -45,6 +45,8 @@ enum Commands {
 
 #[derive(Serialize, Deserialize)]
 struct ProjectConfig {
+    boot_version: String,
+    java_version: String,
     app_name: String,
     package_name: String,
     version: String,
@@ -176,13 +178,15 @@ async fn main() -> Result<()> {
 }
 
 fn show_info(config: &ProjectConfig) {
-    println!("APP_NAME: {}", config.app_name);
-    println!("PACKAGE_NAME: {}", config.package_name);
-    println!("ARTIFACT_NAME: {}", config.app_name);
-    println!("VERSION: {}", config.version);
-    println!("PROJECTS_DIR: {}", config.projects_dir);
-    println!("APP_DIR: {}", config.app_dir().display());
-    println!("JAR_PATH: {}", config.jar_path().display());
+    println!("     APP NAME: {}", config.app_name);
+    println!(" PACKAGE NAME: {}", config.package_name);
+    println!("ARTIFACT NAME: {}", config.app_name);
+    println!("      VERSION: {}", config.version);
+    println!(" BOOT VERSION: {}", config.boot_version);
+    println!(" JAVA VERSION: {}", config.java_version);
+    println!(" PROJECTS DIR: {}", config.projects_dir);
+    println!("      APP DIR: {}", config.app_dir().display());
+    println!("     JAR PATH: {}", config.jar_path().display());
 }
 
 fn reset(config: &ProjectConfig) -> Result<()> {
@@ -243,8 +247,8 @@ async fn init_project(config: &ProjectConfig, prd_path: Option<&str>, include: O
 
     // Download Spring Boot scaffold
     let url = format!(
-        "https://start.spring.io/starter.zip?type=maven-project&language=java&bootVersion=3.4.2&baseDir={}&groupId={}&artifactId={}&name={}&packageName={}&packaging=jar&javaVersion=21&dependencies={}",
-        config.app_name, config.package_name, config.app_name, config.app_name, config.package_name, all_deps.trim()
+        "https://start.spring.io/starter.zip?type=maven-project&language=java&bootVersion={}&baseDir={}&groupId={}&artifactId={}&name={}&packageName={}&packaging=jar&javaVersion={}&version={}&dependencies={}",
+        config.boot_version, config.app_name, config.package_name, config.app_name, config.app_name, config.package_name, config.java_version, config.version, all_deps.trim()
     );
 
     println!("Using dependencies: {}", all_deps.trim());
@@ -293,35 +297,8 @@ async fn init_project(config: &ProjectConfig, prd_path: Option<&str>, include: O
         return Err(color_eyre::eyre::eyre!("Failed to get project version from pom.xml"));
     }
 
-    let project_version = String::from_utf8(output.stdout)?
-        .trim()
-        .to_string();
-
     // Sync plugins from config.json to pom.xml
     sync_plugins(config)?;
-
-    // Compare versions
-    if project_version != config.version {
-        println!("Warning: Version mismatch detected");
-        println!("  config.json version: {}", config.version);
-        println!("  pom.xml version: {}", project_version);
-        
-        println!("Updating pom.xml version to match config.json...");
-        
-        // Update version using Maven
-        let status = Command::new("./mvnw")
-            .current_dir(&config.app_dir())
-            .arg("versions:set")
-            .arg(format!("-DnewVersion={}", config.version))
-            .arg("-DgenerateBackupPoms=false")
-            .status()?;
-
-        if !status.success() {
-            return Err(color_eyre::eyre::eyre!("Failed to update project version"));
-        }
-
-        println!("Version updated successfully");
-    }
 
     println!("Project initialization complete");
     Ok(())
