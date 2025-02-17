@@ -31,8 +31,6 @@ enum Commands {
     },
     /// Build the project
     Build,
-    /// Run the project
-    Run,
     /// List all available dependency IDs
     Deps,
     /// Suggest dependencies based on PRD
@@ -48,8 +46,8 @@ struct ProjectConfig {
     boot_version: String,
     java_version: String,
     app_name: String,
+    app_version: String,
     package_name: String,
-    version: String,
     projects_dir: String,
     maven_plugins: Vec<String>,
     include_deps: Vec<String>,
@@ -69,18 +67,18 @@ impl ProjectConfig {
     fn jar_path(&self) -> PathBuf {
         self.app_dir()
             .join("target")
-            .join(format!("{}-{}.jar", self.app_name, self.version))
+            .join(format!("{}-{}.jar", self.app_name, self.app_version))
     }
 }
 
 async fn suggest_dependencies(prd_path: &str) -> Result<()> {
     // Read the PRD file
     let prd_content = fs::read_to_string(prd_path)?;
-    
+
     // Read the dependencies metadata
     let deps_content = fs::read_to_string("client.json")?;
     let deps: serde_json::Value = serde_json::from_str(&deps_content)?;
-    
+
     // Create a system prompt that includes the dependencies data
     let system_prompt = format!(
         "You are an expert in Spring Boot applications. Your task is to analyze a PRD (Product Requirements Document) \
@@ -90,14 +88,14 @@ async fn suggest_dependencies(prd_path: &str) -> Result<()> {
         dependencies that are directly relevant to the requirements.",
         serde_json::to_string_pretty(&deps["dependencies"]["values"])?
     );
-    
+
     // Initialize Claude client
     let claude = claude::ClaudeClient::new()?;
-    
+
     // Get dependency suggestions
     let response = claude.send_message(&system_prompt, &prd_content).await?;
     println!("{}", response);
-    
+
     Ok(())
 }
 
@@ -147,7 +145,7 @@ async fn list_dependencies() -> Result<()> {
         // Wrap description text
         let wrapped_desc = textwrap::fill(&desc, 70);
         let mut lines = wrapped_desc.lines();
-        
+
         if let Some(first_line) = lines.next() {
             println!("{:<40} {}", id, first_line);
             for line in lines {
@@ -170,7 +168,6 @@ async fn main() -> Result<()> {
         Commands::Reset => reset(&config)?,
         Commands::Init { prd, include } => init_project(&config, prd.as_deref(), include).await?,
         Commands::Build => build_project(&config)?,
-        Commands::Run => run_project(&config)?,
         Commands::Deps => list_dependencies().await?,
         Commands::SuggestDeps { prd } => suggest_dependencies(&prd).await?,
     }
@@ -180,11 +177,10 @@ async fn main() -> Result<()> {
 
 fn show_info(config: &ProjectConfig) {
     println!("     APP NAME: {}", config.app_name);
+    println!("  APP VERSION: {}", config.app_version);
     println!(" PACKAGE NAME: {}", config.package_name);
-    println!("ARTIFACT NAME: {}", config.app_name);
-    println!("      VERSION: {}", config.version);
-    println!(" BOOT VERSION: {}", config.boot_version);
     println!(" JAVA VERSION: {}", config.java_version);
+    println!(" BOOT VERSION: {}", config.boot_version);
     println!(" PROJECTS DIR: {}", config.projects_dir);
     println!("      APP DIR: {}", config.app_dir().display());
     println!("     JAR PATH: {}", config.jar_path().display());
@@ -205,16 +201,20 @@ fn reset(config: &ProjectConfig) -> Result<()> {
     Ok(())
 }
 
-async fn init_project(config: &ProjectConfig, prd_path: Option<&str>, include: Option<Vec<String>>) -> Result<()> {
+async fn init_project(
+    config: &ProjectConfig,
+    prd_path: Option<&str>,
+    include: Option<Vec<String>>,
+) -> Result<()> {
     // Get dependencies from PRD if provided
     let mut all_deps = if let Some(prd_path) = prd_path {
         // Read the PRD file
         let prd_content = fs::read_to_string(prd_path)?;
-        
+
         // Read the dependencies metadata
         let deps_content = fs::read_to_string("client.json")?;
         let deps: serde_json::Value = serde_json::from_str(&deps_content)?;
-        
+
         // Create a system prompt that includes the dependencies data
         let system_prompt = format!(
             "You are an expert in Spring Boot applications. Your task is to analyze a PRD (Product Requirements Document) \
@@ -223,10 +223,10 @@ async fn init_project(config: &ProjectConfig, prd_path: Option<&str>, include: O
             comma-separated list of dependency IDs. Do not include any explanations or other text.",
             serde_json::to_string_pretty(&deps["dependencies"]["values"])?
         );
-        
+
         // Initialize Claude client
         let claude = claude::ClaudeClient::new()?;
-        
+
         // Get dependency suggestions
         claude.send_message(&system_prompt, &prd_content).await?
     } else {
@@ -236,15 +236,15 @@ async fn init_project(config: &ProjectConfig, prd_path: Option<&str>, include: O
     // Add included dependencies from both config and command line
     let prd_deps: Vec<&str> = all_deps.split(',').map(|s| s.trim()).collect();
     let mut combined_deps: Vec<String> = prd_deps.iter().map(|&s| s.to_string()).collect();
-    
+
     // Add dependencies from config
     combined_deps.extend(config.include_deps.clone());
-    
+
     // Add dependencies from command line
     if let Some(included) = include {
         combined_deps.extend(included);
     }
-    
+
     combined_deps.sort();
     combined_deps.dedup();
     all_deps = combined_deps.join(",");
@@ -255,7 +255,7 @@ async fn init_project(config: &ProjectConfig, prd_path: Option<&str>, include: O
     // Download Spring Boot scaffold
     let url = format!(
         "https://start.spring.io/starter.zip?type=maven-project&language=java&bootVersion={}&baseDir={}&groupId={}&artifactId={}&name={}&packageName={}&packaging=jar&javaVersion={}&version={}&dependencies={}",
-        config.boot_version, config.app_name, config.package_name, config.app_name, config.app_name, config.package_name, config.java_version, config.version, all_deps.trim()
+        config.boot_version, config.app_name, config.package_name, config.app_name, config.app_name, config.package_name, config.java_version, config.app_version, all_deps.trim()
     );
 
     println!("Using dependencies: {}", all_deps.trim());
@@ -301,7 +301,9 @@ async fn init_project(config: &ProjectConfig, prd_path: Option<&str>, include: O
         .output()?;
 
     if !output.status.success() {
-        return Err(color_eyre::eyre::eyre!("Failed to get project version from pom.xml"));
+        return Err(color_eyre::eyre::eyre!(
+            "Failed to get project version from pom.xml"
+        ));
     }
 
     // Sync plugins from config.json to pom.xml
@@ -345,64 +347,57 @@ fn sync_plugins(config: &ProjectConfig) -> Result<()> {
 
             // Extract plugin coordinates
             let parts: Vec<&str> = plugin.split(":").collect();
-            let (group_id, artifact_id, version) = (
-                parts[0], parts[1], parts[2]
-            );
+            let (group_id, artifact_id, version) = (parts[0], parts[1], parts[2]);
 
             // Read current pom.xml
             let mut pom_content = fs::read_to_string(&pom_path)?;
 
             // Check if build and plugins sections exist, if not add them
             if !pom_content.contains("<build>") {
-                let insert_pos = pom_content.find("</project>").ok_or_else(|| 
-                    color_eyre::eyre::eyre!("Could not find </project> tag in pom.xml"))?;
-                pom_content.insert_str(insert_pos, "
+                let insert_pos = pom_content.find("</project>").ok_or_else(|| {
+                    color_eyre::eyre::eyre!("Could not find </project> tag in pom.xml")
+                })?;
+                pom_content.insert_str(
+                    insert_pos,
+                    "
     <build>
         <plugins>
         </plugins>
     </build>
-");
+",
+                );
             } else if !pom_content.contains("<plugins>") {
-                let insert_pos = pom_content.find("</build>").ok_or_else(|| 
-                    color_eyre::eyre::eyre!("Could not find </build> tag in pom.xml"))?;
-                pom_content.insert_str(insert_pos, "
+                let insert_pos = pom_content.find("</build>").ok_or_else(|| {
+                    color_eyre::eyre::eyre!("Could not find </build> tag in pom.xml")
+                })?;
+                pom_content.insert_str(
+                    insert_pos,
+                    "
         <plugins>
         </plugins>
-");
+",
+                );
             }
 
             // Add plugin configuration
-            let plugin_xml = format!("
+            let plugin_xml = format!(
+                "
             <plugin>
                 <groupId>{}</groupId>
                 <artifactId>{}</artifactId>
                 <version>{}</version>
-            </plugin>", group_id, artifact_id, version);
+            </plugin>",
+                group_id, artifact_id, version
+            );
 
-            let plugins_end_pos = pom_content.find("</plugins>").ok_or_else(|| 
-                color_eyre::eyre::eyre!("Could not find </plugins> tag in pom.xml"))?;
+            let plugins_end_pos = pom_content.find("</plugins>").ok_or_else(|| {
+                color_eyre::eyre::eyre!("Could not find </plugins> tag in pom.xml")
+            })?;
             pom_content.insert_str(plugins_end_pos, &plugin_xml);
 
             // Write updated pom.xml
             fs::write(&pom_path, pom_content)?;
         }
-    }
-
-    Ok(())
-}
-
-fn run_project(config: &ProjectConfig) -> Result<()> {
-    // First build the project
-    build_project(config)?;
-
-    println!("Running project...");
-    let status = Command::new("java")
-        .arg("-jar")
-        .arg(config.jar_path())
-        .status()?;
-
-    if !status.success() {
-        return Err(color_eyre::eyre::eyre!("Failed to run project"));
     }
 
     Ok(())
