@@ -7,5 +7,14 @@
     "projects_dir": "/Users/shane/projects",
     "maven_plugins": [
         "com.google.cloud.tools:jib-maven-plugin:3.4.4"
+    ],
+    "include_deps": [
+        "actuator",
+        "data-jdbc",
+        "devtools",
+        "lombok",
+        "postgresql",
+        "prometheus",
+        "web"
     ]
 }

@@ -52,6 +52,7 @@ struct ProjectConfig {
     version: String,
     projects_dir: String,
     maven_plugins: Vec<String>,
+    include_deps: Vec<String>,
 }
 
 impl ProjectConfig {
@@ -232,15 +233,21 @@ async fn init_project(config: &ProjectConfig, prd_path: Option<&str>, include: O
         String::from("web")
     };
 
-    // Add included dependencies
+    // Add included dependencies from both config and command line
+    let prd_deps: Vec<&str> = all_deps.split(',').map(|s| s.trim()).collect();
+    let mut combined_deps: Vec<String> = prd_deps.iter().map(|&s| s.to_string()).collect();
+    
+    // Add dependencies from config
+    combined_deps.extend(config.include_deps.clone());
+    
+    // Add dependencies from command line
     if let Some(included) = include {
-        let prd_deps: Vec<&str> = all_deps.split(',').map(|s| s.trim()).collect();
-        let mut combined_deps: Vec<String> = prd_deps.iter().map(|&s| s.to_string()).collect();
         combined_deps.extend(included);
-        combined_deps.sort();
-        combined_deps.dedup();
-        all_deps = combined_deps.join(",");
-    };
+    }
+    
+    combined_deps.sort();
+    combined_deps.dedup();
+    all_deps = combined_deps.join(",");
 
     // First reset
     reset(config)?;
