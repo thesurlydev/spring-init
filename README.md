@@ -2,6 +2,8 @@
 
 A powerful CLI tool for creating and managing Spring Boot projects with AI-assisted dependency selection. This tool streamlines the process of initializing Spring Boot applications by automatically suggesting dependencies based on your project requirements.
 
+![image](assets/image.png)
+
 ## Features
 
 - **AI-Powered Dependency Selection**: Analyzes your Product Requirements Document (PRD) to suggest relevant Spring Boot dependencies
