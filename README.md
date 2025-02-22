@@ -1,168 +1,91 @@
 # spring-init
 
+A powerful CLI tool for creating and managing Spring Boot projects with AI-assisted dependency selection. This tool streamlines the process of initializing Spring Boot applications by automatically suggesting dependencies based on your project requirements.
 
+## Features
+
+- **AI-Powered Dependency Selection**: Analyzes your Product Requirements Document (PRD) to suggest relevant Spring Boot dependencies
+- **Project Initialization**: Creates new Spring Boot projects with customizable configurations
+- **Build Management**: Handles project building and Maven plugin synchronization
+- **Project Reset**: Ability to reset project state when needed
+- **Dependency Information**: Lists all available Spring Boot dependencies
+
+## Installation
+
+Ensure you have Rust installed on your system, then clone and build the project:
+
+```bash
+git clone https://github.com/thesurlydev/spring-init.git
+cd spring-init
+cargo build --release
 ```
-https://start.spring.io/metadata/client
+
+## Configuration
+
+Create a `config.json` file in your project root with the following structure:
+
+```json
+{
+    "boot_version": "3.2.0",
+    "java_version": "21",
+    "app_name": "my-spring-app",
+    "app_version": "0.0.1-SNAPSHOT",
+    "package_name": "com.example.demo",
+    "projects_dir": "./projects",
+    "maven_plugins": [],
+    "include_deps": []
+}
 ```
 
-## Dependency IDs
+## Usage
 
-activemq
-actuator
-amqp
-amqp-streams
-artemis
-azure-active-directory
-azure-cosmos-db
-azure-keyvault
-azure-storage
-azure-support
-batch
-cache
-camel
-cloud-bus
-cloud-config-client
-cloud-config-server
-cloud-contract-stub-runner
-cloud-contract-verifier
-cloud-eureka
-cloud-eureka-server
-cloud-feign
-cloud-function
-cloud-gateway
-cloud-gateway-reactive
-cloud-gcp
-cloud-gcp-pubsub
-cloud-gcp-storage
-cloud-loadbalancer
-cloud-resilience4j
-cloud-starter
-cloud-starter-consul-config
-cloud-starter-consul-discovery
-cloud-starter-vault-config
-cloud-starter-zookeeper-config
-cloud-starter-zookeeper-discovery
-cloud-stream
-cloud-task
-codecentric-spring-boot-admin-client
-codecentric-spring-boot-admin-server
-configuration-processor
-data-cassandra
-data-cassandra-reactive
-data-couchbase
-data-couchbase-reactive
-data-elasticsearch
-data-jdbc
-data-jpa
-data-ldap
-data-mongodb
-data-mongodb-reactive
-data-neo4j
-data-r2dbc
-data-redis
-data-redis-reactive
-data-rest
-data-rest-explorer
-datadog
-db2
-derby
-devtools
-dgs-codegen
-distributed-tracing
-docker-compose
-dynatrace
-flyway
-freemarker
-graphite
-graphql
-groovy-templates
-h2
-hateoas
-hsql
-htmx
-influx
-integration
-jdbc
-jersey
-jooq
-jte
-kafka
-kafka-streams
-liquibase
-lombok
-mail
-mariadb
-modulith
-mustache
-mybatis
-mysql
-native
-netflix-dgs
-new-relic
-oauth2-authorization-server
-oauth2-client
-oauth2-resource-server
-okta
-oracle
-otlp-metrics
-postgresql
-prometheus
-pulsar
-pulsar-reactive
-quartz
-restdocs
-rsocket
-sbom-cyclone-dx
-scs-config-client
-scs-service-registry
-security
-sentry
-session
-solace
-spring-ai-anthropic
-spring-ai-azure-openai
-spring-ai-bedrock
-spring-ai-bedrock-converse
-spring-ai-markdown-document-reader
-spring-ai-mistral
-spring-ai-ollama
-spring-ai-openai
-spring-ai-pdf-document-reader
-spring-ai-postgresml
-spring-ai-stabilityai
-spring-ai-tika-document-reader
-spring-ai-transformers
-spring-ai-vectordb-azure
-spring-ai-vectordb-azurecosmosdb
-spring-ai-vectordb-cassandra
-spring-ai-vectordb-chroma
-spring-ai-vectordb-coherence
-spring-ai-vectordb-elasticsearch
-spring-ai-vectordb-mariadb
-spring-ai-vectordb-milvus
-spring-ai-vectordb-mongodb-atlas
-spring-ai-vectordb-neo4j
-spring-ai-vectordb-oracle
-spring-ai-vectordb-pgvector
-spring-ai-vectordb-pinecone
-spring-ai-vectordb-qdrant
-spring-ai-vectordb-redis
-spring-ai-vectordb-typesense
-spring-ai-vectordb-weaviate
-spring-ai-vertexai-embeddings
-spring-ai-vertexai-gemini
-spring-grpc
-spring-shell
-sqlserver
-testcontainers
-thymeleaf
-timefold-solver
-unboundid-ldap
-vaadin
-validation
-wavefront
-web
-web-services
-webflux
-websocket
-zipkin
+### Initialize a New Project
+
+```bash
+# Basic initialization
+spring-init init
+
+# Initialize with PRD-based dependency suggestions
+spring-init init --prd path/to/prd.md
+
+# Initialize with additional dependencies
+spring-init init --include web,data-jpa,postgresql
+```
+
+### Get Dependency Suggestions
+
+```bash
+spring-init suggest-deps --prd path/to/prd.md
+```
+
+### List Available Dependencies
+
+```bash
+spring-init deps
+```
+
+### Build Project
+
+```bash
+spring-init build
+```
+
+### Show Project Information
+
+```bash
+spring-init info
+```
+
+### Reset Project
+
+```bash
+spring-init reset
+```
+
+## PRD Format
+
+When using the AI-powered dependency suggestion feature, your PRD should clearly describe your application's requirements and features. The AI will analyze this document to suggest appropriate Spring Boot dependencies.
+
+## Dependencies
+
+The tool integrates with [start.spring.io](https://start.spring.io) to provide access to all official Spring Boot dependencies. For a complete list of available dependencies, use the `deps` command.
