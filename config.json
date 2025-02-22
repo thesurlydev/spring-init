@@ -3,7 +3,7 @@
     "app_version": "0.1.0",
     "package_name": "dev.surly",
     "java_version": "21",
-    "boot_version": "3.4.2",
+    "boot_version": "3.4.3",
     "projects_dir": "/Users/shane/projects",
     "maven_plugins": [
         "com.google.cloud.tools:jib-maven-plugin:3.4.4"
