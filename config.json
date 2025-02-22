@@ -12,6 +12,7 @@
         "actuator",
         "data-jdbc",
         "devtools",
+        "docker-compose",
         "lombok",
         "postgresql",
         "prometheus",
